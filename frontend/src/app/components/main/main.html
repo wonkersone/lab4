@@ -57,7 +57,7 @@
               <th>Y</th>
               <th>R</th>
               <th>Результат</th>
-            </tr>
+              <th>Время</th> </tr>
             </thead>
             <tbody>
             <tr *ngFor="let res of points">
@@ -69,6 +69,7 @@
                     {{res.hit ? 'Попадание' : 'Промах'}}
                   </span>
               </td>
+              <td>{{res.checkTime | date:'HH:mm:ss'}}</td>
             </tr>
             </tbody>
           </table>

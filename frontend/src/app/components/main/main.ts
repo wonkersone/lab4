@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -21,11 +21,15 @@ export class MainComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private canvasTimeout: any;
 
-  constructor(private pointService: PointService, private router: Router) {}
+  constructor(
+    private pointService: PointService,
+    private router: Router,
+    private cdr: ChangeDetectorRef,
+    private zone: NgZone
+  ) {}
 
   ngOnInit(): void {
-    const owner = localStorage.getItem('currentUser');
-    if (!owner) {
+    if (!localStorage.getItem('authToken')) {
       this.router.navigate(['/']);
       return;
     }
@@ -43,16 +47,19 @@ export class MainComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   logout(): void {
+    localStorage.removeItem('authToken');
     localStorage.removeItem('currentUser');
     this.router.navigate(['/']);
   }
 
   loadPoints(): void {
-    const owner = localStorage.getItem('currentUser') || 'guest';
-    this.pointService.getPoints(owner).subscribe({
+    this.pointService.getPoints().subscribe({
       next: (data: Point[]) => {
-        this.points = data;
-        this.drawCanvas();
+        this.zone.run(() => {
+          this.points = [...data];
+          this.drawCanvas();
+          this.cdr.detectChanges();
+        });
       },
       error: (err: any) => console.error("Ошибка при загрузке истории:", err)
     });
@@ -88,30 +95,36 @@ export class MainComponent implements OnInit, AfterViewInit, OnDestroy {
     const y = parseFloat(this.newPoint.y.toString().replace(',', '.'));
     const x = parseFloat(this.newPoint.x);
     const r = parseFloat(this.newPoint.r);
-    const owner = localStorage.getItem('currentUser') || 'guest';
 
-    const pointToSend = { x, y, r, owner };
-
-    this.pointService.addPoint(pointToSend).subscribe({
+    this.pointService.addPoint({ x, y, r }).subscribe({
       next: (result: Point) => {
-        this.points = [result, ...this.points];
-        this.drawCanvas();
+        this.zone.run(() => {
+          // Создаем новый массив с новой точкой в начале
+          this.points = [result, ...this.points];
+          this.drawCanvas();
+          this.cdr.detectChanges();
+        });
       },
       error: () => alert("Ошибка при отправке данных на сервер")
     });
   }
 
   clearPoints(): void {
-    if (confirm("Вы уверены, что хотите полностью очистить историю ваших проверок?")) {
-      const owner = localStorage.getItem('currentUser') || 'guest';
-      this.pointService.clearPoints(owner).subscribe({
-        next: () => {
+    if (!confirm("Вы уверены, что хотите очистить историю?")) return;
+
+    this.pointService.clearPoints().subscribe({
+      next: () => {
+        this.zone.run(() => {
           this.points = [];
           this.drawCanvas();
-        },
-        error: (err: any) => alert("Не удалось очистить данные на сервере")
-      });
-    }
+          this.cdr.detectChanges();
+        });
+      },
+      error: (err: any) => {
+        console.error("Ошибка при очистке:", err);
+        alert("Не удалось очистить историю на сервере");
+      }
+    });
   }
 
   onCanvasClick(event: MouseEvent): void {
@@ -137,12 +150,14 @@ export class MainComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     const r = parseFloat(this.newPoint.r);
-    const owner = localStorage.getItem('currentUser') || 'guest';
 
-    this.pointService.addPoint({ x, y, r, owner }).subscribe({
+    this.pointService.addPoint({ x, y, r }).subscribe({
       next: (result: Point) => {
-        this.points = [result, ...this.points];
-        this.drawCanvas();
+        this.zone.run(() => {
+          this.points = [result, ...this.points];
+          this.drawCanvas();
+          this.cdr.detectChanges();
+        });
       },
       error: (err: any) => console.error("Ошибка при сохранении клика:", err)
     });
@@ -164,7 +179,6 @@ export class MainComponent implements OnInit, AfterViewInit, OnDestroy {
 
     if (r > 0) {
       ctx.fillStyle = 'rgba(0, 180, 216, 0.4)';
-
       ctx.fillRect(center, center - r * step, r * step, r * step);
 
       ctx.beginPath();

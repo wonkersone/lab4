@@ -23,12 +23,14 @@ export class LoginComponent {
       return;
     }
 
-    const url = this.isLoginMode ? '/lab4-1.0/api/auth/login' : '/lab4-1.0/api/auth/register';
+    const url = this.isLoginMode ? '/api/auth/login' : '/api/auth/register';
 
-    this.http.post(url, this.user).subscribe({
-      next: () => {
+    this.http.post<any>(url, this.user).subscribe({
+      next: (response) => {
         if (this.isLoginMode) {
+          localStorage.setItem('authToken', response.token);
           localStorage.setItem('currentUser', this.user.login);
+
           this.router.navigate(['/main']);
         } else {
           alert("Регистрация успешна! Теперь вы можете войти.");
@@ -38,7 +40,8 @@ export class LoginComponent {
       },
       error: (err) => {
         console.error(err);
-        alert(err.error || (this.isLoginMode ? "Ошибка входа" : "Ошибка регистрации"));
+        const errorMessage = err.error || (this.isLoginMode ? "Ошибка входа" : "Ошибка регистрации");
+        alert(typeof errorMessage === 'string' ? errorMessage : "Ошибка связи с сервером");
       }
     });
   }

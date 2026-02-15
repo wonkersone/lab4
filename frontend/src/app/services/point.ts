@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { Point } from '../models/point.model';
 
@@ -7,19 +7,26 @@ import { Point } from '../models/point.model';
   providedIn: 'root'
 })
 export class PointService {
-  private apiUrl = '/lab4-1.0/api/points';
+  private apiUrl = '/api/points';
 
   constructor(private http: HttpClient) { }
 
-  getPoints(owner: string): Observable<Point[]> {
-    return this.http.get<Point[]>(`${this.apiUrl}?owner=${owner}`);
+  private getHeaders(): HttpHeaders {
+    const token = localStorage.getItem('authToken');
+    return new HttpHeaders({
+      'Authorization': `Bearer ${token}`
+    });
+  }
+
+  getPoints(): Observable<Point[]> {
+    return this.http.get<Point[]>(this.apiUrl, { headers: this.getHeaders() });
   }
 
   addPoint(point: Point): Observable<Point> {
-    return this.http.post<Point>(this.apiUrl, point);
+    return this.http.post<Point>(this.apiUrl, point, { headers: this.getHeaders() });
   }
 
-  clearPoints(owner: string): Observable<any> {
-    return this.http.delete(`${this.apiUrl}?owner=${owner}`);
+  clearPoints(): Observable<any> {
+    return this.http.delete(this.apiUrl, { headers: this.getHeaders() });
   }
 }
